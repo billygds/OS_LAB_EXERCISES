@@ -1,0 +1,6 @@
+    void handler()
+    {
+	    reset_xterm_color(1);
+	    printf("\nReseting Terminal Color and Terminating the program\n");
+	    exit(1);
+    }

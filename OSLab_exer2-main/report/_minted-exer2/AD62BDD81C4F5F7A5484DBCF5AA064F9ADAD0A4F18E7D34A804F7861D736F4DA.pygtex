@@ -1,0 +1,301 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * mandel.c}
+\PYG{c+cm}{ *}
+\PYG{c+cm}{ * A program to draw the Mandelbrot Set on a 256\PYGZhy{}color xterm.}
+\PYG{c+cm}{ *}
+\PYG{c+cm}{ */}
+
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}errno.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}stdio.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}stdlib.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}unistd.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}signal.h\PYGZgt{}}
+
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}assert.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}string.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}math.h\PYGZgt{}}
+
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}semaphore.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}pthread.h\PYGZgt{}}
+
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZdq{}mandel\PYGZhy{}lib.h\PYGZdq{}}
+
+\PYG{c+cp}{\PYGZsh{}define MANDEL\PYGZus{}MAX\PYGZus{}ITERATION 100000}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * POSIX thread functions do not return error numbers in errno,}
+\PYG{c+cm}{ * but in the actual return value of the function call instead.}
+\PYG{c+cm}{ * This macro helps with error reporting in this case.}
+\PYG{c+cm}{ */}
+\PYG{c+cp}{\PYGZsh{}define perror\PYGZus{}pthread(ret, msg) \PYGZbs{}}
+\PYG{c+cp}{        do \PYGZob{} errno = ret; perror(msg); \PYGZcb{} while (0)}
+
+\PYG{c+cm}{/*******************************************************}
+\PYG{c+cm}{ * Creating Signal Handler for Reseting terminal color *}
+\PYG{c+cm}{ *******************************************************/}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{handler}\PYG{p}{()}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{       	}\PYG{n}{reset\PYGZus{}xterm\PYGZus{}color}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{        }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{Reset Terminal Color to default and terminating the program}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{        }\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+cm}{/*******************************************************}
+\PYG{c+cm}{ * Creating Safe Atoi, Safe Malloc and Usage Functions *}
+\PYG{c+cm}{ *******************************************************/}
+
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{safe\PYGZus{}atoi}\PYG{p}{(}\PYG{k+kt}{char}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{s}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{val}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{long}\PYG{+w}{ }\PYG{n}{l}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k+kt}{char}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{endp}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{n}{l}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{strtol}\PYG{p}{(}\PYG{n}{s}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{endp}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{10}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{s}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{n}{endp}\PYG{+w}{ }\PYG{o}{\PYGZam{}\PYGZam{}}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{endp}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{l+s+sc}{\PYGZsq{}\PYGZbs{}0\PYGZsq{}}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{o}{*}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{l}\PYG{p}{;}
+\PYG{+w}{		}\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}\PYG{+w}{ }\PYG{k}{else}
+\PYG{+w}{		}\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{\PYGZhy{}1}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n+nf}{safe\PYGZus{}malloc}\PYG{p}{(}\PYG{k+kt}{size\PYGZus{}t}\PYG{+w}{ }\PYG{n}{size}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{p}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{((}\PYG{n}{p}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{malloc}\PYG{p}{(}\PYG{n}{size}\PYG{p}{))}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}Out of memory, failed to allocate \PYGZpc{}zd bytes}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}
+\PYG{+w}{			}\PYG{n}{size}\PYG{p}{);}
+\PYG{+w}{		}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{n}{p}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{usage}\PYG{p}{(}\PYG{k+kt}{char}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{argv0}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{        }\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}Usage: \PYGZpc{}s thread\PYGZus{}count}\PYG{l+s+se}{\PYGZbs{}n\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}
+\PYG{+w}{                }\PYG{l+s}{\PYGZdq{}Exactly one argument required:}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}
+\PYG{+w}{                }\PYG{l+s}{\PYGZdq{}    thread\PYGZus{}count: The number of threads to create.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}
+\PYG{+w}{		}\PYG{n}{argv0}\PYG{p}{);}
+\PYG{+w}{        }\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{thread\PYGZus{}num}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+
+\PYG{c+cm}{/***********************}
+\PYG{c+cm}{ *  Thread Info Object *}
+\PYG{c+cm}{ ***********************/}
+
+\PYG{k}{struct}\PYG{+w}{ }\PYG{n+nc}{thread\PYGZus{}info\PYGZus{}struct}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}t}\PYG{+w}{ }\PYG{n}{tid}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}cond\PYGZus{}t}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{cond}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}t}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{mutex}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{thread\PYGZus{}id}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{thread\PYGZus{}count}\PYG{p}{;}
+\PYG{p}{\PYGZcb{};}
+
+
+
+\PYG{c+cm}{/***************************}
+\PYG{c+cm}{ * Compile\PYGZhy{}time parameters *}
+\PYG{c+cm}{ ***************************/}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * Output at the terminal is is x\PYGZus{}chars wide by y\PYGZus{}chars long}
+\PYG{c+cm}{*/}
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{y\PYGZus{}chars}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{50}\PYG{p}{;}
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{x\PYGZus{}chars}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{90}\PYG{p}{;}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * The part of the complex plane to be drawn:}
+\PYG{c+cm}{ * upper left corner is (xmin, ymax), lower right corner is (xmax, ymin)}
+\PYG{c+cm}{*/}
+\PYG{k+kt}{double}\PYG{+w}{ }\PYG{n}{xmin}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{\PYGZhy{}1.8}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{xmax}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{1.0}\PYG{p}{;}
+\PYG{k+kt}{double}\PYG{+w}{ }\PYG{n}{ymin}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{\PYGZhy{}1.0}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ymax}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{1.0}\PYG{p}{;}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * Every character in the final output is}
+\PYG{c+cm}{ * xstep x ystep units wide on the complex plane.}
+\PYG{c+cm}{ */}
+\PYG{k+kt}{double}\PYG{+w}{ }\PYG{n}{xstep}\PYG{p}{;}
+\PYG{k+kt}{double}\PYG{+w}{ }\PYG{n}{ystep}\PYG{p}{;}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * This function computes a line of output}
+\PYG{c+cm}{ * as an array of x\PYGZus{}char color values.}
+\PYG{c+cm}{ */}
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{compute\PYGZus{}mandel\PYGZus{}line}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{line}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{[])}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * x and y traverse the complex plane.}
+\PYG{c+cm}{	 */}
+\PYG{+w}{	}\PYG{k+kt}{double}\PYG{+w}{ }\PYG{n}{x}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{y}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{n}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{val}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/* Find out the y value corresponding to this line */}
+\PYG{+w}{	}\PYG{n}{y}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{ymax}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{ystep}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{line}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/* and iterate for all points on this line */}
+\PYG{+w}{	}\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{x}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{xmin}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{n}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{n}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{x\PYGZus{}chars}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{x}\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{xstep}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{n}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+
+\PYG{+w}{		}\PYG{c+cm}{/* Compute the point\PYGZsq{}s color value */}
+\PYG{+w}{		}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{mandel\PYGZus{}iterations\PYGZus{}at\PYGZus{}point}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{y}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{MANDEL\PYGZus{}MAX\PYGZus{}ITERATION}\PYG{p}{);}
+\PYG{+w}{		}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{\PYGZgt{}}\PYG{+w}{ }\PYG{l+m+mi}{255}\PYG{p}{)}
+\PYG{+w}{			}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{255}\PYG{p}{;}
+
+\PYG{+w}{		}\PYG{c+cm}{/* And store it in the color\PYGZus{}val[] array */}
+\PYG{+w}{		}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{xterm\PYGZus{}color}\PYG{p}{(}\PYG{n}{val}\PYG{p}{);}
+\PYG{+w}{		}\PYG{n}{color\PYGZus{}val}\PYG{p}{[}\PYG{n}{n}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{val}\PYG{p}{;}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * This function outputs an array of x\PYGZus{}char color values}
+\PYG{c+cm}{ * to a 256\PYGZhy{}color xterm.}
+\PYG{c+cm}{ */}
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{output\PYGZus{}mandel\PYGZus{}line}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{fd}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{[])}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{k+kt}{char}\PYG{+w}{ }\PYG{n}{point}\PYG{+w}{ }\PYG{o}{=}\PYG{l+s+sc}{\PYGZsq{}@\PYGZsq{}}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k+kt}{char}\PYG{+w}{ }\PYG{n}{newline}\PYG{o}{=}\PYG{l+s+sc}{\PYGZsq{}\PYGZbs{}n\PYGZsq{}}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{x\PYGZus{}chars}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{c+cm}{/* Set the current color, then output the point */}
+\PYG{+w}{		}\PYG{n}{set\PYGZus{}xterm\PYGZus{}color}\PYG{p}{(}\PYG{n}{fd}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]);}
+\PYG{+w}{		}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{write}\PYG{p}{(}\PYG{n}{fd}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{point}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{n}{perror}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}compute\PYGZus{}and\PYGZus{}output\PYGZus{}mandel\PYGZus{}line: write point\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{			}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{	}\PYG{c+cm}{/* Now that the line is done, output a newline character */}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{write}\PYG{p}{(}\PYG{n}{fd}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{newline}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{perror}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}compute\PYGZus{}and\PYGZus{}output\PYGZus{}mandel\PYGZus{}line: write newline\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{		}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n+nf}{compute\PYGZus{}and\PYGZus{}output\PYGZus{}mandel\PYGZus{}line}\PYG{p}{(}\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{arg}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}\PYG{+w}{	}
+\PYG{+w}{	}\PYG{k}{struct}\PYG{+w}{ }\PYG{n+nc}{thread\PYGZus{}info\PYGZus{}struct}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{thr}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{arg}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * A temporary array, used to hold color values for the line being drawn}
+\PYG{c+cm}{	 */}
+
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{[}\PYG{n}{x\PYGZus{}chars}\PYG{p}{];}
+
+\PYG{+w}{	}\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}id}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{  }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{y\PYGZus{}chars}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}count}\PYG{p}{)}
+\PYG{+w}{	}\PYG{p}{\PYGZob{}}\PYG{+w}{	}
+
+\PYG{+w}{		}\PYG{n}{compute\PYGZus{}mandel\PYGZus{}line}\PYG{p}{(}\PYG{n}{i}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{);}
+
+\PYG{+w}{		}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}lock}\PYG{p}{(}\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{mutex}\PYG{p}{);}
+
+\PYG{+w}{		}\PYG{k}{while}\PYG{p}{((}\PYG{n}{thread\PYGZus{}num}\PYG{+w}{ }\PYG{o}{\PYGZpc{}}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}count}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}id}\PYG{p}{)}
+\PYG{+w}{		}\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{n}{pthread\PYGZus{}cond\PYGZus{}wait}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{cond}\PYG{p}{[}\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}id}\PYG{p}{],}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{		}\PYG{n}{output\PYGZus{}mandel\PYGZus{}line}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{color\PYGZus{}val}\PYG{p}{);}
+
+\PYG{+w}{		}\PYG{n}{thread\PYGZus{}num}\PYG{o}{++}\PYG{p}{;}
+\PYG{+w}{		}\PYG{c+c1}{//printf(\PYGZdq{}Thread ID =  \PYGZpc{}ld\PYGZbs{}n\PYGZdq{}, pthread\PYGZus{}self());	}
+
+\PYG{+w}{		}\PYG{n}{pthread\PYGZus{}cond\PYGZus{}signal}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{cond}\PYG{p}{[(}\PYG{n}{thread\PYGZus{}num}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{\PYGZpc{}}\PYG{+w}{ }\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{thread\PYGZus{}count}\PYG{p}{]);}
+\PYG{+w}{		}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}unlock}\PYG{p}{(}\PYG{n}{thr}\PYG{o}{\PYGZhy{}\PYGZgt{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{main}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{argc}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{char}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{argv}\PYG{p}{[])}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ret}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}t}\PYG{+w}{ }\PYG{n}{mutex}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{n}{signal}\PYG{p}{(}\PYG{n}{SIGINT}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{handler}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{c+cm}{/******************}
+\PYG{c+cm}{	 * Error Handling *}
+\PYG{c+cm}{	 ******************/}
+
+\PYG{+w}{	}\PYG{k}{if}\PYG{p}{(}\PYG{n}{argc}\PYG{+w}{ }\PYG{o}{!=}\PYG{+w}{ }\PYG{l+m+mi}{2}\PYG{p}{)}
+\PYG{+w}{	}\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{usage}\PYG{p}{(}\PYG{n}{argv}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{k}{if}\PYG{p}{(}\PYG{n}{safe\PYGZus{}atoi}\PYG{p}{(}\PYG{n}{argv}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{],}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{num\PYGZus{}threads}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{+w}{ }\PYG{o}{||}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{+w}{ }\PYG{o}{\PYGZlt{}=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{)}
+\PYG{+w}{	}\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}`\PYGZpc{}s\PYGZsq{} is not valid for `thread\PYGZus{}count\PYGZsq{}}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{argv}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{]);}
+\PYG{+w}{		}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{	}\PYG{c+cm}{/**************************************************}
+\PYG{c+cm}{	 * Allocate and initialize conditions and threads *}
+\PYG{c+cm}{	 **************************************************/}
+
+\PYG{+w}{	}\PYG{k}{struct}\PYG{+w}{ }\PYG{n+nc}{thread\PYGZus{}info\PYGZus{}struct}\PYG{+w}{ }\PYG{o}{*}\PYG{k+kr}{thread}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k+kr}{thread}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{safe\PYGZus{}malloc}\PYG{p}{(}\PYG{n}{num\PYGZus{}threads}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{k}{sizeof}\PYG{p}{(}\PYG{o}{*}\PYG{k+kr}{thread}\PYG{p}{));}
+
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}cond\PYGZus{}t}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{cond}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{cond}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{safe\PYGZus{}malloc}\PYG{p}{(}\PYG{n}{num\PYGZus{}threads}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{k}{sizeof}\PYG{p}{(}\PYG{o}{*}\PYG{n}{cond}\PYG{p}{));}
+
+
+\PYG{+w}{	}\PYG{n}{xstep}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{xmax}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{xmin}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{x\PYGZus{}chars}\PYG{p}{;}
+\PYG{+w}{        }\PYG{n}{ystep}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ymax}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{ymin}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{y\PYGZus{}chars}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/******************************************}
+\PYG{c+cm}{	 * Create N Conditions, Lines and Threads *}
+\PYG{c+cm}{	 ******************************************/}
+
+\PYG{+w}{	}\PYG{k}{for}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{j}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{j}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{j}\PYG{o}{++}\PYG{p}{)}
+\PYG{+w}{	}\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{pthread\PYGZus{}cond\PYGZus{}init}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{cond}\PYG{p}{[}\PYG{n}{j}\PYG{p}{],}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+
+\PYG{+w}{	}\PYG{k}{for}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}
+\PYG{+w}{        }\PYG{p}{\PYGZob{}}
+\PYG{+w}{                }\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{].}\PYG{n}{thread\PYGZus{}id}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{i}\PYG{p}{;}
+\PYG{+w}{                }\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{].}\PYG{n}{thread\PYGZus{}count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{p}{;}
+
+\PYG{+w}{		}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{].}\PYG{n}{mutex}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{;}
+\PYG{+w}{		}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{].}\PYG{n}{cond}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{cond}\PYG{p}{;}
+\PYG{+w}{                }\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}create}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{].}\PYG{n}{tid}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{compute\PYGZus{}and\PYGZus{}output\PYGZus{}mandel\PYGZus{}line}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]);}
+\PYG{+w}{		}\PYG{k}{if}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}
+\PYG{+w}{		}\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}create\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{                        }\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{        }\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}init}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+\PYG{+w}{        }\PYG{n}{pthread\PYGZus{}cond\PYGZus{}signal}\PYG{p}{(}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{].}\PYG{n}{cond}\PYG{p}{);}
+
+
+\PYG{+w}{	}\PYG{c+cm}{/***************************************}
+\PYG{c+cm}{	 * Join Threads and destroy semaphores *}
+\PYG{c+cm}{	 ***************************************/}
+
+\PYG{+w}{	}\PYG{k}{for}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{k}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{k}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{num\PYGZus{}threads}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{k}\PYG{o}{++}\PYG{p}{)}
+\PYG{+w}{	}\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}join}\PYG{p}{(}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{k}\PYG{p}{].}\PYG{n}{tid}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+\PYG{+w}{		}\PYG{k}{if}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}
+\PYG{+w}{		}\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}join\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{			}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{		}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}destroy}\PYG{p}{(}\PYG{k+kr}{thread}\PYG{p}{[}\PYG{n}{k}\PYG{p}{].}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{	}\PYG{n}{free}\PYG{p}{(}\PYG{k+kr}{thread}\PYG{p}{);}
+\PYG{+w}{	}\PYG{n}{free}\PYG{p}{(}\PYG{n}{cond}\PYG{p}{);}
+\PYG{+w}{	}\PYG{n}{reset\PYGZus{}xterm\PYGZus{}color}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+\end{Verbatim}

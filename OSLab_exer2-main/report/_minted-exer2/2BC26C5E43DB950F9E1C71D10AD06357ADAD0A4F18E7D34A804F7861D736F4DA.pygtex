@@ -1,0 +1,7 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{+w}{    }\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}lock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{	}\PYG{c+cm}{/* You cannot modify the following line */}
+\PYG{+w}{	}\PYG{o}{++}\PYG{p}{(}\PYG{o}{*}\PYG{n}{ip}\PYG{p}{);}
+\PYG{+w}{	}\PYG{c+cm}{/* ... */}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}unlock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\end{Verbatim}

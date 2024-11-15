@@ -1,0 +1,5 @@
+\xpginauxfiletrue 
+\selectlanguage *{greek}
+\contentsline {section}{\numberline {1}Συγχρονισμός σε υπάρχοντα κώδικα}{3}{section.1}%
+\contentsline {section}{\numberline {2}Παράλληλος υπολογισμός του συνόλου Mandelbrot}{7}{section.2}%
+\xpginauxfilefalse 

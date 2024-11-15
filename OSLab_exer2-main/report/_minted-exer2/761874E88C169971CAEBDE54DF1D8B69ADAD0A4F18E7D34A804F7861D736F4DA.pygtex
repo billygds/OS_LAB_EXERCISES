@@ -1,0 +1,141 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * simplesync.c}
+\PYG{c+cm}{ *}
+\PYG{c+cm}{ * A simple synchronization exercise.}
+\PYG{c+cm}{ *}
+\PYG{c+cm}{ * Vangelis Koukis \PYGZlt{}vkoukis@cslab.ece.ntua.gr\PYGZgt{}}
+\PYG{c+cm}{ * Operating Systems course, ECE, NTUA}
+\PYG{c+cm}{ *}
+\PYG{c+cm}{ */}
+
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}errno.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}stdio.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}stdlib.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}unistd.h\PYGZgt{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}pthread.h\PYGZgt{}}
+
+\PYG{c+cm}{/*}
+\PYG{c+cm}{ * POSIX thread functions do not return error numbers in errno,}
+\PYG{c+cm}{ * but in the actual return value of the function call instead.}
+\PYG{c+cm}{ * This macro helps with error reporting in this case.}
+\PYG{c+cm}{ */}
+\PYG{c+cp}{\PYGZsh{}define perror\PYGZus{}pthread(ret, msg) \PYGZbs{}}
+\PYG{c+cp}{	do \PYGZob{} errno = ret; perror(msg); \PYGZcb{} while (0)}
+
+\PYG{c+cp}{\PYGZsh{}define N 10000000}
+
+\PYG{c+cm}{/* Dots indicate lines where you are free to insert code at will */}
+\PYG{c+cm}{/* ... */}
+\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}t}\PYG{+w}{ }\PYG{n}{mutex}\PYG{p}{;}
+\PYG{c+cp}{\PYGZsh{}if defined(SYNC\PYGZus{}ATOMIC) \PYGZca{} defined(SYNC\PYGZus{}MUTEX) == 0}
+\PYG{c+cp}{\PYGZsh{} error You must \PYGZsh{}define exactly one of SYNC\PYGZus{}ATOMIC or SYNC\PYGZus{}MUTEX.}
+\PYG{c+cp}{\PYGZsh{}endif}
+
+\PYG{c+cp}{\PYGZsh{}if defined(SYNC\PYGZus{}ATOMIC)}
+\PYG{c+cp}{\PYGZsh{} define USE\PYGZus{}ATOMIC\PYGZus{}OPS 1}
+\PYG{c+cp}{\PYGZsh{}else}
+\PYG{c+cp}{\PYGZsh{} define USE\PYGZus{}ATOMIC\PYGZus{}OPS 0}
+\PYG{c+cp}{\PYGZsh{}endif}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n+nf}{increase\PYGZus{}fn}\PYG{p}{(}\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{arg}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k}{volatile}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{ip}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{arg}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}init}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}About to increase variable \PYGZpc{}d times}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{N}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{N}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{USE\PYGZus{}ATOMIC\PYGZus{}OPS}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{c+cm}{/* You can modify the following line */}
+\PYG{+w}{			}\PYG{n}{\PYGZus{}\PYGZus{}sync\PYGZus{}add\PYGZus{}and\PYGZus{}fetch}\PYG{p}{(}\PYG{n}{ip}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}\PYG{+w}{ }\PYG{k}{else}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}lock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* You cannot modify the following line */}
+\PYG{+w}{			}\PYG{o}{++}\PYG{p}{(}\PYG{o}{*}\PYG{n}{ip}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}unlock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}Done increasing variable.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n+nf}{decrease\PYGZus{}fn}\PYG{p}{(}\PYG{k+kt}{void}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{arg}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{p}{;}
+\PYG{+w}{	}\PYG{k}{volatile}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{ip}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{arg}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}About to decrease variable \PYGZpc{}d times}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{N}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{N}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{USE\PYGZus{}ATOMIC\PYGZus{}OPS}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{c+cm}{/* You can modify the following line */}
+\PYG{+w}{			}\PYG{n}{\PYGZus{}\PYGZus{}sync\PYGZus{}sub\PYGZus{}and\PYGZus{}fetch}\PYG{p}{(}\PYG{n}{ip}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}\PYG{+w}{ }\PYG{k}{else}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}lock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* You cannot modify the following line */}
+\PYG{+w}{			}\PYG{o}{\PYGZhy{}\PYGZhy{}}\PYG{p}{(}\PYG{o}{*}\PYG{n}{ip}\PYG{p}{);}
+\PYG{+w}{			}\PYG{c+cm}{/* ... */}
+\PYG{+w}{			}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}unlock}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+\PYG{+w}{		}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{n}{fprintf}\PYG{p}{(}\PYG{n}{stderr}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}Done decreasing variable.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{main}\PYG{p}{(}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{argc}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{char}\PYG{+w}{ }\PYG{o}{*}\PYG{n}{argv}\PYG{p}{[])}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{val}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ok}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}t}\PYG{+w}{ }\PYG{n}{t1}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{t2}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * Initial value}
+\PYG{c+cm}{	 */}
+\PYG{+w}{	}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * Create threads}
+\PYG{c+cm}{	 */}
+\PYG{+w}{	}\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}create}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{t1}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{increase\PYGZus{}fn}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{val}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}create\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{		}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{	}\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}create}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{t2}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{decrease\PYGZus{}fn}\PYG{p}{,}\PYG{+w}{ }\PYG{o}{\PYGZam{}}\PYG{n}{val}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{		}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}create\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{		}\PYG{n}{exit}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{);}
+\PYG{+w}{	}\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * Wait for threads to terminate}
+\PYG{c+cm}{	 */}
+\PYG{+w}{	}\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}join}\PYG{p}{(}\PYG{n}{t1}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}
+\PYG{+w}{		}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}join\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{	}\PYG{n}{ret}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{pthread\PYGZus{}join}\PYG{p}{(}\PYG{n}{t2}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nb}{NULL}\PYG{p}{);}
+\PYG{+w}{	}\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ret}\PYG{p}{)}
+\PYG{+w}{		}\PYG{n}{perror\PYGZus{}pthread}\PYG{p}{(}\PYG{n}{ret}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}pthread\PYGZus{}join\PYGZdq{}}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{c+c1}{//Destroy mutex\PYGZus{}t thread}
+\PYG{+w}{	}\PYG{n}{pthread\PYGZus{}mutex\PYGZus{}destroy}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{mutex}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{c+cm}{/*}
+\PYG{c+cm}{	 * Is everything OK?}
+\PYG{c+cm}{	 */}
+\PYG{+w}{	}\PYG{n}{ok}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{val}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}\PYGZpc{}sOK, val = \PYGZpc{}d.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ok}\PYG{+w}{ }\PYG{o}{?}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}\PYGZdq{}}\PYG{+w}{ }\PYG{o}{:}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}NOT \PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{val}\PYG{p}{);}
+
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{n}{ok}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+\end{Verbatim}

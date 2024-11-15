@@ -1,0 +1,11 @@
+    /*
+    * Step 12: Free all buffers for parent and child.
+    * Step 12 - Parent
+    */
+
+   munmap(heap_private_buf, buffer_size);
+   munmap(heap_shared_buf, buffer_size);
+
+   /*
+    * TODO: Write your code here to complete parent's part of Step 12.
+    */

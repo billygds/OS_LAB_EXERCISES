@@ -1,0 +1,5 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{n+na}{.loc}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{+w}{ }\PYG{l+m+mi}{51}\PYG{+w}{ }\PYG{l+m+mi}{4}
+\PYG{+w}{	}\PYG{n+nf}{movq}\PYG{+w}{	}\PYG{l+m+mi}{\PYGZhy{}8}\PYG{p}{(}\PYG{n+nv}{\PYGZpc{}rbp}\PYG{p}{),}\PYG{+w}{ }\PYG{n+nv}{\PYGZpc{}rax}
+\PYG{+w}{	}\PYG{n+na}{lock}\PYG{+w}{ }\PYG{n+nf}{addl}\PYG{+w}{	}\PYG{n+no}{\PYGZdl{}1}\PYG{p}{,}\PYG{+w}{ }\PYG{p}{(}\PYG{n+nv}{\PYGZpc{}rax}\PYG{p}{)}
+\end{Verbatim}
